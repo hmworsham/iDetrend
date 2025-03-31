@@ -66,6 +66,11 @@ server <- function(input, output, session) {
       # This might be problematic. What if the user wants a "long" tucson?
       # But we also don't want to add arguments.
       dat <- read.rwl(inFile$datapath)
+
+      # Truncate and remove first and last observations
+      # dat <- dat[as.numeric(rownames(dat))>=1889,]
+      dat[] <- lapply(dat, \(x) replace(x, which(!is.na(x))[1], NA))
+      dat[] <- lapply(dat, \(x) replace(x, last(which(!is.na(x))), NA))
       rwlRV$theRWL <- dat
       return(dat)
     }
@@ -308,7 +313,7 @@ server <- function(input, output, session) {
                      selectInput(inputId = paste0("differenceText",i),
                                  label = "Residual Method",
                                  choices = c("Division","Difference"),
-                                 selected = "Ratio")),
+                                 selected = "Division")),
               # add a tooltip
               bsTooltip(paste0("differenceText",i),
                         title = "Choose between standardizing by subtraction (difference) or by ratio (division)",
@@ -350,7 +355,7 @@ server <- function(input, output, session) {
                                         column(6,
                                                sliderInput(inputId = paste0("nyrsADS",i),
                                                            label = "Spline Stiffness",
-                                                           value = 50,
+                                                           value = floor(length(na.omit(rwlRV$theRWL[,i]))*1/2),
                                                            min = 5,
                                                            max=(length(na.omit(rwlRV$theRWL[,i])) + 10) %/% 10 * 10,
                                                            step = 5,
@@ -464,10 +469,10 @@ server <- function(input, output, session) {
   output$downloadRWI <- downloadHandler(
     filename = function() {
       if(is.null(input$file1)){
-        paste0("demo", "-",Sys.Date(), "RWI.csv")
+        paste0("demo", "_", "RWI.csv")
       }
       else {
-        paste0(input$file1, "-",Sys.Date(), "RWI.csv")
+        paste0(tools::file_path_sans_ext(input$file1), "_RWI.csv")
       }
     },
     content = function(file) {
@@ -479,7 +484,7 @@ server <- function(input, output, session) {
 
 
   output$detrendPlots <- downloadHandler(
-    filename = "detrend_plots.html",
+    filename = paste0(tools::file_path_sans_ext(input$file1), "_detrend_plots.html"),
     content = function(file) {
 
       tempReport <- file.path(tempdir(), "report_savePlots.Rmd")
@@ -501,7 +506,7 @@ server <- function(input, output, session) {
   )
 
   output$detrendReport <- downloadHandler(
-    filename = "detrend_report.html",
+    filename = paste0(tools::file_path_sans_ext(input$file1), "_detrend_report.html"),
     content = function(file) {
 
       tempReport <- file.path(tempdir(), "report_detrended_series.Rmd")
